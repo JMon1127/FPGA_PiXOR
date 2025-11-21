@@ -37,6 +37,9 @@ end entity;
 
 architecture rtl of ov7670_cam is
 
+  signal row_cnt : unsigned(8 downto 0);
+  signal col_cnt : unsigned(9 downto 0);
+
 begin
 
   O_CAM_PCLK <= I_CAM_XCLK when I_CAM_RST_N = '1' else '0';
