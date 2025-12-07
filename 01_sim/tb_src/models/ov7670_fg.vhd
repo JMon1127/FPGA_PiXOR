@@ -57,14 +57,70 @@ architecture rtl of ov7670_fg is
   ------------
   signal s_frame_buff       : t_frame_buff_arry;
   signal sm_data_cap        : t_cap_state;
+
+  signal s_vsync_prev       : std_logic;
+  signal s_href_prev        : std_logic;
+  signal s_row_cnt          : integer range 0 to (c_num_rows - 1);
+  signal s_col_cnt          : integer range 0 to (c_num_cols - 1);
+
 begin
+
+  -- TODO: these counters may be wrong since im not accounting for the pixels being two bytes hence taking two clocks
+  proc_col_cnt : process(I_RST_N, I_PCLK)
+  begin
+    if(I_RST_N = '0') then
+      s_col_cnt     <= 0;
+    elsif(rising_edge(I_PCLK)) then
+      -- will only be counting columns when href is hi
+      if(I_HREF = '1') then
+        if(s_col_cnt = c_num_cols - 1) then
+          s_col_cnt <= 0;
+        else
+          s_col_cnt <= s_col_cnt + 1;
+        end if;
+      end if;
+    end if;
+  end process;
+
+  proc_row_cnt : process(I_RST_N, I_PCLK)
+  begin
+    if(I_RST_N = '0') then
+      s_row_cnt   <= 0;
+    elsif(rising_edge(I_PCLK)) then
+      if((s_row_cnt = c_num_rows - 1) and (s_col_cnt = c_num_cols - 1)) then
+        s_row_cnt <= 0;
+      elsif(s_col_cnt = c_num_cols - 1) then
+        s_row_cnt <= s_row_cnt + 1;
+      end if;
+    end if;
+  end process;
 
   proc_framegrab : process(I_RST_N, I_PCLK)
   begin
     if(I_RST_N = '0') then
-      sm_data_cap <= idle_vsync;
+      sm_data_cap       <= idle_vsync;
     elsif(rising_edge(I_PCLK)) then
-      case
+      case sm_data_cap is
+        -- state to wait for vsync
+        when idle_vsync =>
+          -- sample vsync for rising edge detect
+          s_vsync_prev  <= I_VSYNC;
+
+          if(s_vsync_prev = '0' and I_VSYNC = '1') then
+            sm_data_cap <= idle_href;
+          end if;
+        when idle_href  =>
+          -- sample href for rising edge detect
+          s_href_prev   <= I_HREF;
+
+          if(s_href_prev = '0' and I_HREF = '1') then
+            -- TODO: there should already be valid data here so need to capture here.
+            -- also have to keep in mind that most significant byte comes first and then the LSB
+
+            sm_data_cap <= data_cap;
+          end if;
+        when data_cap   =>
+      end case;
     end if;
   end process;
 end architecture;
