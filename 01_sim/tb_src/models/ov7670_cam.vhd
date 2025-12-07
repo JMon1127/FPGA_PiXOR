@@ -36,6 +36,7 @@ entity ov7670_cam is
 end entity;
 
 architecture rtl of ov7670_cam is
+
   ------------
   -- Constants
   ------------
