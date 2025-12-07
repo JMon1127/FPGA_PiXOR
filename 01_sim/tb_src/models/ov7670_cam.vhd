@@ -55,6 +55,7 @@ architecture rtl of ov7670_cam is
   signal s_line_cnt      : integer range 0 to (c_total_line - 1);
   signal s_vsync         : std_logic;
   signal s_href          : std_logic;
+  signal s_data          : std_logic_vector(7 downto 0);
 
 begin
   -- from datasheet
@@ -115,17 +116,28 @@ begin
       s_href <= '0';
     elsif(rising_edge(I_CAM_XCLK)) then
       -- href will only be actively toggling when the line count is between 20 and 500
-      if(s_line_cnt >= (c_vsync_hi + c_vsync_blnk1) and s_line_cnt <= (c_total_line - c_vsync_blnk2)) then
-        -- TODO: Add proper logic here. for now would like to verify
-        s_href <= '1';
-      else
-        s_href <= '0';
+      if(s_line_cnt >= (c_vsync_hi + c_vsync_blnk1) and s_line_cnt < (c_total_line - c_vsync_blnk2)) then
+        -- href is only high for 640 pixels. low for 144
+        if(s_tp_cnt < c_active_tp * c_byte_pixel) then
+          s_href <= '1';
+        else
+          s_href <= '0';
+        end if;
       end if;
     end if;
   end process;
 
+  proc_data : process(I_CAM_RST_N, I_CAM_XCLK)
+  begin
+    if(I_CAM_RST_N ='0') then
+      s_data <= (others => '0');
+    elsif(rising_edge(I_CAM_XCLK)) then
+      s_data <= std_logic_vector(to_unsigned(s_tp_cnt + s_line_cnt, s_data'length));
+    end if;
+  end process;
+
   O_CAM_PCLK  <= I_CAM_XCLK when I_CAM_RST_N = '1' else '0';
-  O_CAM_DATA  <= (others => '0');
+  O_CAM_DATA  <= s_data;
   O_CAM_HREF  <= s_href;
   O_CAM_VSYNC <= s_vsync;
 
