@@ -38,10 +38,14 @@ architecture rtl of ov7670_fg is
   ------------
   -- Constants
   ------------
-  constant c_num_cols       : integer := 640;
-  constant c_num_rows       : integer := 480;
-  constant c_bits_per_pixel : integer :=  16; -- 2 bytes per pixel in RGB mode
-  constant c_total_pixels   : integer := c_num_cols * c_num_rows;
+  constant c_num_cols        : integer := 640;
+  constant c_num_rows        : integer := 480;
+  constant c_bytes_per_pixel : integer :=   2;
+  constant c_bits_per_pixel  : integer := c_bytes_per_pixel * 8;              -- 2 bytes per pixel in RGB mode
+  constant c_total_pixels    : integer :=     c_num_cols * c_num_rows;
+  constant c_total_col_bytes : integer :=     c_num_cols * c_bytes_per_pixel; -- number of column in bytes
+  constant c_total_row_bytes : integer :=     c_num_rows * c_bytes_per_pixel; -- number of rows in bytes
+  constant c_total_bytes     : integer := c_total_pixels * c_bytes_per_pixel; -- total number of bytes
 
   ------------
   -- Types
