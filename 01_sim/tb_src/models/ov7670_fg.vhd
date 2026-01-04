@@ -41,11 +41,8 @@ architecture rtl of ov7670_fg is
   constant c_num_cols        : integer := 640;
   constant c_num_rows        : integer := 480;
   constant c_bytes_per_pixel : integer :=   2;
-  constant c_bits_per_pixel  : integer := c_bytes_per_pixel * 8;              -- 2 bytes per pixel in RGB mode
-  constant c_total_pixels    : integer :=     c_num_cols * c_num_rows;
-  constant c_total_col_bytes : integer :=     c_num_cols * c_bytes_per_pixel; -- number of column in bytes
-  constant c_total_row_bytes : integer :=     c_num_rows * c_bytes_per_pixel; -- number of rows in bytes
-  constant c_total_bytes     : integer := c_total_pixels * c_bytes_per_pixel; -- total number of bytes
+  constant c_bits_per_pixel  : integer := c_bytes_per_pixel * 8; -- 2 bytes per pixel in RGB mode
+  constant c_total_pixels    : integer := c_num_cols        * c_num_rows;
 
   ------------
   -- Types
@@ -62,10 +59,11 @@ architecture rtl of ov7670_fg is
   signal s_frame_buff       : t_frame_buff_arry;
   signal sm_data_cap        : t_cap_state;
 
-  signal s_vsync_prev       : std_logic;
-  signal s_href_prev        : std_logic;
-  signal s_row_cnt          : integer range 0 to (c_num_rows - 1);
-  signal s_col_cnt          : integer range 0 to (c_num_cols - 1);
+  signal s_vsync_prev       : std_logic;                           -- used for rising edge detect
+  signal s_href_prev        : std_logic;                           -- used for rising edge detect
+  signal s_row_cnt          : integer range 0 to (c_num_rows - 1); -- row count
+  signal s_col_cnt          : integer range 0 to (c_num_cols - 1); -- col count
+  signal s_col_cnt_tgl      : std_logic;                           -- used to increment col cnt every other clk
 
 begin
 
@@ -74,6 +72,7 @@ begin
   begin
     if(I_RST_N = '0') then
       s_col_cnt     <= 0;
+      s_col_cnt_tgl <= '0';
     elsif(rising_edge(I_PCLK)) then
       -- will only be counting columns when href is hi
       if(I_HREF = '1') then
@@ -114,13 +113,13 @@ begin
             sm_data_cap <= idle_href;
           end if;
         when idle_href  =>
-          -- sample href for rising edge detect
+          -- href for rising edge detect
           s_href_prev   <= I_HREF;
 
           if(s_href_prev = '0' and I_HREF = '1') then
             -- TODO: there should already be valid data here so need to capture here.
             -- also have to keep in mind that most significant byte comes first and then the LSB
-
+            s_frame_buff(s_row_cnt + s_col_cnt)()
             sm_data_cap <= data_cap;
           end if;
         when data_cap   =>
