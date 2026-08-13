@@ -36,12 +36,49 @@ end entity;
 
 architecture rtl of ov5640_cam is
 
-    signal s_row_cnt : unsigned(31 downto 0);
-    signal s_col_cnt : unsigned(31 downto 0);
+  constant c_pclk_prd : time := 1 sec / 96000000;
+  constant c_xclk_max : integer := 500;
+
+  signal s_xclk_lockd : std_logic;
+  signal s_xclk_cnt   : unsigned(31 downto 0);
+  signal s_pclk       : std_logic;
+  signal s_row_cnt    : unsigned(31 downto 0);
+  signal s_col_cnt    : unsigned(31 downto 0);
 
 begin
 
+  ----------------------------------------------------------------------
   -- pclk generation, per datasheet 1080p DVP mode pixel clock is 96MHz
+  ----------------------------------------------------------------------
+  -- start with sampling the input xclk. once we get 500 stable clocks we can indicate lock
+  proc_lock_xclk : process (I_CAM_XCLK, I_CAM_RSTN)
+  begin
+    if (I_CAM_RSTN = '0') then
+      s_xclk_lockd <= '0';
+      s_xclk_cnt   <= (others => '0');
+    elsif(rising_edge(I_CAM_XCLK)) then
+      -- increment counter
+      s_xclk_cnt <= s_xclk_cnt + 1;
+
+      -- once the count hits 500 keep the counter cleared and indicate a lock
+      if (s_xclk_cnt = c_xclk_max - 1) then
+        s_xclk_cnt   <= (others => '0');
+        s_xclk_lockd <= '1';
+      end if;
+    end if;
+  end process proc_lock_xclk;
+
+  proc_gen_pclk : process
+  begin
+    s_pclk <= '0';
+
+    wait until s_xclk_lockd = '1';
+
+    loop
+      wait for c_pclk_prd / 2;
+      s_pclk <= not s_pclk;
+    end loop;
+  end process;
 
   -- process to track rows
 
